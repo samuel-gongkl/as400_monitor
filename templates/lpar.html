@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AS400 LPAR CPU Usage</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem("as400-monitor-theme") === "light") {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <h1>ONE CLOUD AS400 LPAR CPU Usage</h1>
+    <nav class="nav"><a class="nav-link" href="/">Dashboard</a><a class="nav-link active" href="/lpar">LPAR CPU</a><a class="nav-link" href="/ai-agent">AI-Agent</a>{% if auth_enabled %}<a class="nav-link nav-logout" href="/logout" title="Sign out{% if username %} ({{ username }}){% endif %}">Sign out</a>{% endif %}</nav>
+    <div class="status">
+      <span id="mode-badge" class="badge">{{ mode }}</span>
+      <span id="health" class="health">checking…</span>
+      <span id="updated" class="updated"></span>
+    </div>
+  </header>
+
+  <main class="lpar-page" id="lpar-panels">
+    <!-- One panel per LPAR is rendered here by lpar.js -->
+  </main>
+
+  <footer class="footer">
+    Sampling CPU every <span id="sample-int">–</span>s · retaining
+    <span id="hist-hours">–</span>h · Data from IBM i QSYS2 SQL services
+  </footer>
+
+  <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme">
+    <span class="theme-icon" aria-hidden="true">☀️</span><span class="theme-label">Light mode</span>
+  </button>
+
+  <script>
+    window.APP_CONFIG = { refreshSeconds: {{ refresh_seconds }} };
+  </script>
+  <script src="{{ url_for('static', filename='lpar.js') }}"></script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+</body>
+</html>

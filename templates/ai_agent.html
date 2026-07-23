@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ONE CLOUD AS400 AI-Agent</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem("as400-monitor-theme") === "light") {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <h1>ONE CLOUD AS400 AI-Agent</h1>
+    <nav class="nav"><a class="nav-link" href="/">Dashboard</a><a class="nav-link" href="/lpar">LPAR CPU</a><a class="nav-link active" href="/ai-agent">AI-Agent</a>{% if auth_enabled %}<a class="nav-link nav-logout" href="/logout" title="Sign out{% if username %} ({{ username }}){% endif %}">Sign out</a>{% endif %}</nav>
+    <div class="status"></div>
+  </header>
+
+  <main class="agent-page">
+    <section class="agent-card">
+      <h2 class="agent-heading">AI-Agent</h2>
+      <p class="agent-intro">
+        Launch an AI assistant to help with your AS400 / IBM&nbsp;i tasks.
+        Each agent opens in a new browser tab using your Microsoft&nbsp;365 sign-in.
+      </p>
+      <div class="agent-buttons">
+        {% for a in agents %}
+        <a class="agent-launch" href="{{ a.url }}" target="_blank" rel="noopener">
+          <span class="agent-launch-name">{{ a.name }}</span>
+          <span class="agent-launch-desc">{{ a.desc }}</span>
+          <span class="agent-launch-cta">Launch ↗</span>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+  </main>
+
+  <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme">
+    <span class="theme-icon" aria-hidden="true">☀️</span><span class="theme-label">Light mode</span>
+  </button>
+
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AS400 / IBM i Monitor</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem("as400-monitor-theme") === "light") {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <h1>ONE CLOUD AS400 / IBM i Monitor</h1>
+    <nav class="nav"><a class="nav-link active" href="/">Dashboard</a><a class="nav-link" href="/lpar">LPAR CPU</a><a class="nav-link" href="/ai-agent">AI-Agent</a>{% if auth_enabled %}<a class="nav-link nav-logout" href="/logout" title="Sign out{% if username %} ({{ username }}){% endif %}">Sign out</a>{% endif %}</nav>
+    <div class="status">
+      {% if lpars|length > 1 %}
+      <select id="lpar-select" class="lpar-select" title="Select LPAR">
+        {% for l in lpars %}
+        <option value="{{ l.key }}"{% if l.key == default_lpar %} selected{% endif %}>{{ l.name }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+      <span id="mode-badge" class="badge">{{ mode }}</span>
+      <span id="health" class="health">checking…</span>
+      <span id="updated" class="updated"></span>
+    </div>
+  </header>
+
+  <main class="grid">
+    <!-- KPI cards for the system collector -->
+    <section class="card kpi-card" id="card-system">
+      <h2>System Status</h2>
+      <div class="kpis">
+        <div class="kpi"><span class="kpi-value" id="kpi-cpu">–</span><span class="kpi-label">CPU %</span></div>
+        <div class="kpi"><span class="kpi-value" id="kpi-active">–</span><span class="kpi-label">Active Jobs</span></div>
+        <div class="kpi"><span class="kpi-value kpi-value-sm" id="kpi-uptime">–</span><span class="kpi-label">Uptime</span></div>
+      </div>
+      <div class="gauges">
+        <div class="jobs-gauge">
+          <div class="jobs-gauge-chart">
+            <canvas id="jobs-chart"></canvas>
+            <div class="jobs-gauge-center">
+              <span class="jobs-gauge-pct" id="jobs-pct">–</span>
+              <span class="jobs-gauge-sub">of max</span>
+            </div>
+          </div>
+          <div class="jobs-gauge-legend">
+            <div class="jg-title">Total Jobs</div>
+            <div class="jg-row"><span class="jg-swatch jg-used"></span>Total jobs<span class="jg-val" id="jobs-used">–</span></div>
+            <div class="jg-row"><span class="jg-swatch jg-free"></span>Headroom<span class="jg-val" id="jobs-free">–</span></div>
+            <div class="jg-row jg-max"><span class="jg-swatch jg-cap"></span>Maximum<span class="jg-val" id="jobs-max">600,000</span></div>
+          </div>
+        </div>
+        <div class="jobs-gauge">
+          <div class="jobs-gauge-chart">
+            <canvas id="asp-chart"></canvas>
+            <div class="jobs-gauge-center">
+              <span class="jobs-gauge-pct" id="asp-pct">–</span>
+              <span class="jobs-gauge-sub">of max</span>
+            </div>
+          </div>
+          <div class="jobs-gauge-legend">
+            <div class="jg-title">ASP Used %</div>
+            <div class="jg-row"><span class="jg-swatch jg-used"></span>Used<span class="jg-val" id="asp-used">–</span></div>
+            <div class="jg-row"><span class="jg-swatch jg-free"></span>Free<span class="jg-val" id="asp-free">–</span></div>
+            <div class="jg-row jg-max"><span class="jg-swatch jg-cap"></span>Maximum<span class="jg-val" id="asp-max">100%</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card chart-card">
+      <h2>CPU Utilization (live)</h2>
+      <canvas id="cpu-chart" height="120"></canvas>
+    </section>
+
+    <!-- Table-style collectors are rendered dynamically -->
+    {% for card in cards %}
+      {% if card.kind == 'table' %}
+      <section class="card table-card" id="card-{{ card.id }}">
+        <h2>{{ card.title }}</h2>
+        <div class="table-wrap"><table id="table-{{ card.id }}"><thead></thead><tbody></tbody></table></div>
+      </section>
+      {% endif %}
+    {% endfor %}
+  </main>
+
+  <footer class="footer">
+    Auto-refresh every <span id="refresh">{{ refresh_seconds }}</span>s ·
+    Data from IBM i QSYS2 SQL services
+  </footer>
+
+  <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch theme">
+    <span class="theme-icon" aria-hidden="true">☀️</span><span class="theme-label">Light mode</span>
+  </button>
+
+  <script>
+    window.APP_CONFIG = { refreshSeconds: {{ refresh_seconds }} };
+  </script>
+  <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+</body>
+</html>
