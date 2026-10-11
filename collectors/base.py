@@ -121,10 +121,19 @@ class BackgroundTableCollector(Collector):
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._refreshing = False
-        self._rows: list[list[Any]] = []
-        self._fetched_at: float | None = None
-        self._error: str | None = None
+        # A collector instance is shared by all requests, but requests can
+        # target different LPARs. Keep one snapshot and refresh flag per LPAR;
+        # otherwise switching partitions briefly shows another partition's
+        # cached jobs/messages/disk rows.
+        self._cache: dict[str, dict[str, Any]] = {}
+
+    def _state_for(self, lpar_key: str) -> dict[str, Any]:
+        return self._cache.setdefault(lpar_key, {
+            "refreshing": False,
+            "rows": [],
+            "fetched_at": None,
+            "error": None,
+        })
 
     # Subclasses implement these two.
     def query_live(self) -> list[list[Any]]:
@@ -134,12 +143,15 @@ class BackgroundTableCollector(Collector):
         raise NotImplementedError
 
     def fetch_live(self) -> dict[str, Any]:
-        self._maybe_start_refresh()
+        from db import current_lpar
+        lpar_key = current_lpar()
+        self._maybe_start_refresh(lpar_key)
         with self._lock:
-            rows = list(self._rows)
-            fetched_at = self._fetched_at
-            error = self._error
-            refreshing = self._refreshing
+            state = self._state_for(lpar_key)
+            rows = list(state["rows"])
+            fetched_at = state["fetched_at"]
+            error = state["error"]
+            refreshing = state["refreshing"]
 
         if fetched_at is None:
             note = "Loading in background"
@@ -167,38 +179,39 @@ class BackgroundTableCollector(Collector):
         payload["count"] = len(rows)
         return payload
 
-    def _maybe_start_refresh(self) -> None:
+    def _maybe_start_refresh(self, lpar_key: str) -> None:
         now = time.time()
         with self._lock:
-            fresh = (self._fetched_at is not None
-                     and now - self._fetched_at < self.ttl_seconds)
-            if fresh or self._refreshing:
+            state = self._state_for(lpar_key)
+            fresh = (state["fetched_at"] is not None
+                     and now - state["fetched_at"] < self.ttl_seconds)
+            if fresh or state["refreshing"]:
                 return
-            self._refreshing = True
+            state["refreshing"] = True
         # Capture the caller's current LPAR so the background thread (which has
         # its own thread-local) queries the same partition.
-        from db import current_lpar
-        lpar_key = current_lpar()
         threading.Thread(target=self._refresh, args=(lpar_key,),
                          daemon=True).start()
 
     def _refresh(self, lpar_key: str | None = None) -> None:
-        if lpar_key is not None:
-            from db import set_current_lpar
-            set_current_lpar(lpar_key)
+        from db import current_lpar, set_current_lpar
+        lpar_key = lpar_key or current_lpar()
+        set_current_lpar(lpar_key)
         try:
             rows = self.query_live()
             with self._lock:
-                self._rows = rows
-                self._fetched_at = time.time()
-                self._error = None
+                state = self._state_for(lpar_key)
+                state["rows"] = rows
+                state["fetched_at"] = time.time()
+                state["error"] = None
         except Exception as exc:
             with self._lock:
-                self._error = str(exc)
-                self._fetched_at = time.time()
+                state = self._state_for(lpar_key)
+                state["error"] = str(exc)
+                state["fetched_at"] = time.time()
         finally:
             with self._lock:
-                self._refreshing = False
+                self._state_for(lpar_key)["refreshing"] = False
 
 
 def all_collectors() -> list[Collector]:

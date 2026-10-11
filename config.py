@@ -138,6 +138,34 @@ class Config:
     # Set when falling back to the built-in default password (dev only).
     AUTH_USING_DEFAULT_PASSWORD = not (AUTH_PASSWORD or AUTH_PASSWORD_HASH)
 
+    # ------------------------------------------------------------------ #
+    # Notifications (disabled by default)
+    # ------------------------------------------------------------------ #
+    # The monitor polls normalized collector data in a daemon thread and sends
+    # only state changes (plus optional reminders), never from a web request.
+    NOTIFY_ENABLED = _get_bool("NOTIFY_ENABLED", False)
+    NOTIFY_INTERVAL_SECONDS = max(5, int(os.getenv("NOTIFY_INTERVAL_SECONDS", "60")))
+    NOTIFY_REPEAT_MINUTES = max(0, int(os.getenv("NOTIFY_REPEAT_MINUTES", "0")))
+    NOTIFY_HTTP_TIMEOUT_SECONDS = max(1, int(os.getenv("NOTIFY_HTTP_TIMEOUT_SECONDS", "10")))
+
+    NOTIFY_CPU_WARN_PCT = float(os.getenv("NOTIFY_CPU_WARN_PCT", "75"))
+    NOTIFY_CPU_CRIT_PCT = float(os.getenv("NOTIFY_CPU_CRIT_PCT", "90"))
+    NOTIFY_ASP_WARN_PCT = float(os.getenv("NOTIFY_ASP_WARN_PCT", "80"))
+    NOTIFY_ASP_CRIT_PCT = float(os.getenv("NOTIFY_ASP_CRIT_PCT", "90"))
+
+    NOTIFY_EMAIL_ENABLED = _get_bool("NOTIFY_EMAIL_ENABLED", False)
+    NOTIFY_EMAIL_SMTP_HOST = os.getenv("NOTIFY_EMAIL_SMTP_HOST", "").strip()
+    NOTIFY_EMAIL_SMTP_PORT = int(os.getenv("NOTIFY_EMAIL_SMTP_PORT", "587"))
+    NOTIFY_EMAIL_USER = os.getenv("NOTIFY_EMAIL_USER", "").strip()
+    NOTIFY_EMAIL_PASSWORD = os.getenv("NOTIFY_EMAIL_PASSWORD", "")
+    NOTIFY_EMAIL_FROM = os.getenv("NOTIFY_EMAIL_FROM", "").strip()
+    NOTIFY_EMAIL_TO = os.getenv("NOTIFY_EMAIL_TO", "")
+    NOTIFY_EMAIL_USE_TLS = _get_bool("NOTIFY_EMAIL_USE_TLS", True)
+    NOTIFY_EMAIL_USE_SSL = _get_bool("NOTIFY_EMAIL_USE_SSL", False)
+
+    NOTIFY_TEAMS_ENABLED = _get_bool("NOTIFY_TEAMS_ENABLED", False)
+    NOTIFY_TEAMS_WEBHOOK_URL = os.getenv("NOTIFY_TEAMS_WEBHOOK_URL", "").strip()
+
     # LPAR CPU history dashboard
     # How often the background sampler records a CPU data point (seconds).
     LPAR_SAMPLE_SECONDS = int(os.getenv("LPAR_SAMPLE_SECONDS", "30"))

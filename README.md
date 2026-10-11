@@ -17,11 +17,11 @@ Built-in monitors:
 | Disk Units | `QSYS2.SYSDISKSTAT` | Per-unit % used / % busy |
 | Subsystems | `QSYS2.SUBSYSTEM_INFO` | Active subsystems & their job counts |
 
-Two additional collectors ship with the project but are **disabled by default**
-(not registered in `collectors/__init__.py`): **Active Jobs**
+Two additional collectors also ship with the project: **Highest CPU Jobs**
 (`QSYS2.ACTIVE_JOB_INFO`, top CPU-consuming jobs) and **QSYSOPR Alerts**
-(`QSYS2.MESSAGE_QUEUE_INFO`, inquiry & high-severity operator messages). Re-enable
-either by adding its import back to `collectors/__init__.py`.
+(`QSYS2.MESSAGE_QUEUE_INFO`, inquiry & high-severity operator messages). They
+are registered in `collectors/__init__.py` and use background refreshes because
+their IBM i queries can be expensive. Remove either import to disable it.
 
 ### Alert highlighting
 
@@ -34,7 +34,8 @@ Table rows are color-coded by severity so problems stand out at a glance:
 | Active Jobs* | CPU ≥ 10% | CPU ≥ 25% |
 | QSYSOPR Alerts* | severity ≥ 50 | `INQUIRY` message or severity ≥ 70 |
 
-<sub>* available but disabled by default (see above).</sub>
+<sub>* the additional collectors are enabled in the default registry; remove
+their imports from `collectors/__init__.py` if they are not needed.</sub>
 
 The System Status KPIs are colored too: **CPU %** turns amber at 75 / red at 90,
 and **ASP Used %** turns amber at 80 / red at 90. Each card header shows a count
@@ -311,3 +312,58 @@ class OutputQueueCollector(Collector):
 - Use a least-privilege IBM i user profile for monitoring.
 - For production, run behind a reverse proxy and serve with a WSGI server
   (e.g. `waitress`) instead of Flask's dev server.
+
+## Email and Microsoft Teams alerts
+
+The monitor can notify operators when a threshold is crossed. Notifications are
+**disabled by default** and run in a daemon thread, so SMTP or Teams downtime
+does not block dashboard requests. An alert is sent when it first becomes
+active, when its severity changes, and when it recovers. Set
+`NOTIFY_REPEAT_MINUTES` to a positive value to repeat an ongoing alert.
+
+Copy the notification section from `.env.example` into `.env` and set
+`NOTIFY_ENABLED=1`. Configure either or both channels:
+
+### Email (SMTP)
+
+```dotenv
+NOTIFY_EMAIL_ENABLED=1
+NOTIFY_EMAIL_SMTP_HOST=smtp.example.com
+NOTIFY_EMAIL_SMTP_PORT=587
+NOTIFY_EMAIL_USER=monitor@example.com
+NOTIFY_EMAIL_PASSWORD=your-secret
+NOTIFY_EMAIL_FROM=monitor@example.com
+NOTIFY_EMAIL_TO=ops@example.com,teamlead@example.com
+NOTIFY_EMAIL_USE_TLS=1
+NOTIFY_EMAIL_USE_SSL=0
+```
+
+Use `NOTIFY_EMAIL_USE_SSL=1` for an SMTPS server (normally port 465); do not
+combine implicit SSL with STARTTLS. For Microsoft 365 SMTP AUTH, use the
+mailbox/app password and tenant policy permitted by your administrator.
+
+### Microsoft Teams
+
+Create an incoming webhook for the target channel (or a Teams Workflows
+webhook that accepts HTTP POST requests), then configure:
+
+```dotenv
+NOTIFY_TEAMS_ENABLED=1
+NOTIFY_TEAMS_WEBHOOK_URL=https://example.invalid/replace-with-secret-webhook-url
+```
+
+The app posts a Teams-compatible MessageCard containing the LPAR, severity,
+threshold values, and the observed row details. Treat the webhook URL like a
+password: store it only in `.env` or a secret manager, and never commit it.
+
+The following conditions can generate notifications:
+
+- System CPU and system ASP usage, using `NOTIFY_*_WARN_PCT` and
+  `NOTIFY_*_CRIT_PCT`.
+- Critical/warning rows from Disk Units, Active Subsystems, Highest CPU Jobs,
+  and QSYSOPR Messages collectors.
+
+The existing dashboard highlighting thresholds are not changed by these
+settings. To test safely, run in mock mode with notifications disabled while
+verifying the dashboard; enable notifications only when real recipients and a
+real webhook are configured.

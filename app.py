@@ -22,6 +22,7 @@ import collectors
 import lpar
 from config import Config
 from db import set_current_lpar, test_connection
+from notifications import start_alert_monitor
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,6 +49,11 @@ PUBLIC_ENDPOINTS = {"login", "static"}
 # Begin recording CPU history as soon as the app is imported so the LPAR
 # dashboard accumulates data even before anyone opens it.
 lpar.start_sampler()
+
+# Notification polling is opt-in and starts only when a channel is configured.
+# It runs outside Flask request threads, so a slow SMTP or Teams endpoint never
+# delays the dashboard.
+start_alert_monitor()
 
 
 def _is_authenticated() -> bool:
